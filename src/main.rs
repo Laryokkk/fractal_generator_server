@@ -1,28 +1,24 @@
-use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
+mod ws;
+mod lobby;
+use lobby::Lobby;
+mod messages;
+mod start_connection;
+use start_connection::start_connection as start_connection_route;
+use actix::Actor;
+
+use actix_web::{App, HttpServer};
+
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    HttpServer::new(|| {
+    let chat_server = Lobby::default().start(); //create and spin up a lobby
+
+    HttpServer::new(move || {
         App::new()
-            .service(hello)
-            .service(echo)
-            .route("/hey", web::get().to(manual_hello))
+            .service(start_connection_route) //register our route. rename with "as" import or naming conflict
+            .data(chat_server.clone()) //register the lobby
     })
-    .bind(("127.0.0.1", 8080))?
+    .bind("127.0.0.1:8080")?
     .run()
     .await
-}
-
-#[get("/")]
-async fn hello() -> impl Responder {
-    HttpResponse::Ok().body("Hello world!")
-}
-
-#[post("/echo")]
-async fn echo(req_body: String) -> impl Responder {
-    HttpResponse::Ok().body(req_body)
-}
-
-async fn manual_hello() -> impl Responder {
-    HttpResponse::Ok().body("Hey there!")
 }
